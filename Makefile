@@ -5,9 +5,9 @@ OBJS =\
 	core.6 \
 	main.6
 
-all: dgqem
+all: ndayak
 
-dgqem: $(OBJS)
+ndayak: $(OBJS)
 	$(LD) -o $@ main.6
 
 %.6 : %.go 

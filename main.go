@@ -29,29 +29,50 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"flag"
 	"./core"
 )
 
 var (
+	VERSION string = "v0.1 alpha"
 	laddr *net.UDPAddr
 	con *net.UDPConn
 	err os.Error
 )
 
 
+func banner(){
+	fmt.Printf("Ndayak %s\n",VERSION)
+}
+
 func main(){
 	
 	var buf[1000] byte;
+	
+	var listen_port int = *flag.Int("port",50105,"Listen port")
+	var db_server string = *flag.String("dbserver","127.0.0.1","Database/collection server")
+	var db_port int = *flag.Int("dbport",27017,"Database/collection port")
 
-	laddr, err = net.ResolveUDPAddr("127.0.0.1:6854");
+	flag.Parse()
+	
+	banner()
+
+	var listen_addr string = fmt.Sprintf("0.0.0.0:%d",listen_port)
+	
+	laddr, err = net.ResolveUDPAddr(listen_addr);
 	if err != nil{fmt.Println("Error in resolve... ",err); os.Exit(1);}
 	
 	con, err = net.ListenUDP("udp", laddr)
 	if err != nil{fmt.Println("Error in listen..."); os.Exit(2);}
-
-	resp := make(chan int)
 	
-	core.Init(con)
+	fmt.Println("Listening at " + listen_addr + "...")
+	fmt.Println("Ready for connection.")
+
+	resp := make(chan string)
+
+	st := core.Settings{db_server,db_port}
+	
+	core.Init(con, &st)
 
 	go core.Worker(resp)
 	go core.Worker(resp)
@@ -60,15 +81,12 @@ func main(){
 	for{
 		n, err := con.Read(buf[0:128]);
 		if err != nil{fmt.Println("Error in read..."); os.Exit(3);}
-		fmt.Println("Read",n,"bytes")
+		//fmt.Println("Read",n,"bytes")
 		
-		go func(ch chan int){
+		go func(ch chan string){
 			var d string = string(buf[:n]);
-			fmt.Println("Got:",d)
-			switch d{
-			case "q":
-				ch <- 101
-			}
+			//fmt.Println("Got:",d)
+			ch <- d
 		}(resp)
 	}
 	
