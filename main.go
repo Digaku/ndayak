@@ -3,6 +3,8 @@
  * writen by Robin Syihab (r[at]nosql.asia)
  *
  * License MIT
+ *
+ * Copyright (c) 2009 The Go Authors. All rights reserved.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,8 +49,6 @@ func banner(){
 
 func main(){
 	
-	var buf[1000] byte;
-	
 	var listen_port int = *flag.Int("port",50105,"Listen port")
 	var db_server string = *flag.String("dbserver","127.0.0.1","Database/collection server")
 	var db_port int = *flag.Int("dbport",27017,"Database/collection port")
@@ -77,20 +77,30 @@ func main(){
 	go core.Worker(resp)
 	go core.Worker(resp)
 	go core.Worker(resp)
+	
+	go stream_reader(resp,1)
+	go stream_reader(resp,2)
+	stream_reader(resp,3) // main stream-reader
 
-	for{
-		n, err := con.Read(buf[0:128]);
-		if err != nil{fmt.Println("Error in read..."); os.Exit(3);}
-		//fmt.Println("Read",n,"bytes")
-		
-		go func(ch chan string){
-			var d string = string(buf[:n]);
-			//fmt.Println("Got:",d)
-			ch <- d
-		}(resp)
-	}
 	
 	fmt.Println("Done.")
 	
 }
+
+func stream_reader(resp chan string,id int){
+	var buf[1000] byte;
+	for{
+		n, err := con.Read(buf[0:128]);
+		if err != nil{fmt.Println("Error in read..."); os.Exit(3);}
+		
+		fmt.Println(fmt.Sprintf("[sr-%d]",id),"received",n,"bytes")
+	
+		go func(ch chan string){
+			var d string = string(buf[:n]);
+			fmt.Println("Got:",d)
+			ch <- d
+		}(resp)
+	}	
+}
+
 
