@@ -151,6 +151,10 @@ func Worker(ch chan string){
 		
 		cmdstr := d[0]
 		
+		if cmdstr[0] != '/'{
+			return
+		}
+		
 		if len(d) > 1{
 			arg = d[1]
 		}
@@ -294,11 +298,11 @@ func process_post(post_id string){
 		return
 	}
 	
-	fmt.Printf("writer: %v\n", writer.Name)
+	//fmt.Printf("writer: %v\n", writer.Name)
 	insertPostStream(strid(writer.Id_), post_id)
 	
 	var writer_id string = strid(writer.Id_)
-	fmt.Printf("writer_id: %s\n", writer_id)
+	//fmt.Printf("writer_id: %s\n", writer_id)
 	
 	// get all followers
 	qfind, err = mongo.Marshal(map[string]string{"_followed_user_ids":writer_id}, atreps)
@@ -313,7 +317,7 @@ func process_post(post_id string){
 		
 			var follower User
 			mongo.Unmarshal(doc.Bytes(), &follower, atreps)
-			fmt.Printf("follower: id: %v, name: %v\n", strid(follower.Id_), follower.Name)
+			fmt.Printf("[B]-> follower: id: %v, name: %v\n", strid(follower.Id_), follower.Name)
 		
 			// insert to follower streams
 			insertPostStream(strid(follower.Id_), post_id)
@@ -336,8 +340,8 @@ func process_post(post_id string){
 			var ch Channel
 			mongo.Unmarshal(doc.Bytes(), &ch, atreps)
 
-			var ch_id string = strid(ch.Id_)
-			fmt.Printf("ch_id: %s\n", ch_id)
+			//var ch_id string = strid(ch.Id_)
+			// fmt.Printf("ch_id: %s\n", ch_id)
 
 			// get all members
 			qfind, err := mongo.Marshal(map[string]string{"_channel_ids":strid(ch.Id_)}, atreps)
@@ -352,7 +356,7 @@ func process_post(post_id string){
 
 					var follower User
 					mongo.Unmarshal(doc.Bytes(), &follower, atreps)
-					fmt.Printf("member: id: %v, name: %v\n", strid(follower.Id_), follower.Name)
+					fmt.Printf("[B]-> member: id: %v, name: %v\n", strid(follower.Id_), follower.Name)
 
 					// insert to follower streams
 					insertPostStream(strid(follower.Id_), post_id)
