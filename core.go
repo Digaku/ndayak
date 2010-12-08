@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"os"
 	"net"
+	"strings"
 	"encoding/hex"
 	"mongo"
 )
@@ -48,6 +49,7 @@ var (
 const (
 	CMD_QUIT = "/q"
 	CMD_PROCESS = "/p" // /p [POST-ID]
+	CMD_RMPOST = "/rm" // /rm [POST-ID]
 )
 
 var atreps map[string]string
@@ -143,9 +145,19 @@ func Worker(ch chan string){
 		//fmt.Println("worker received new task...")
 		//fmt.Println("working...")
 		
-		switch rv[:2]{
+		d := strings.Fields(rv)
+		
+		var arg string = ""
+		
+		cmdstr := d[0]
+		
+		if len(d) > 1{
+			arg = d[1]
+		}
+		
+		switch cmdstr{
 		case CMD_PROCESS:
-		 	post_id := rv[3:]
+		 	post_id := arg
 			
 			fmt.Printf("Building index for post_id: %v...\n", post_id)
 			process_post(post_id)
@@ -154,12 +166,29 @@ func Worker(ch chan string){
 			fmt.Println("Quit command received. Realy quiting now...")
 			con.Close()
 			os.Exit(0)
+			
+		case CMD_RMPOST:
+			post_id := arg
+			fmt.Printf("Removing stream for post id: `%s`...\n", post_id)
+			rmPostStream(post_id)
+		default:
+			fmt.Printf("Unknown command `%s`\n", cmdstr)
 		}
 		//fmt.Println("worker finished task.")
 	}
 }
 
 type oidSearch map[string]mongo.ObjectId
+
+func rmPostStream(postId string){
+	qfind, err := mongo.Marshal(map[string]string{"postid":postId}, atreps)
+	if err != nil{err = os.NewError("Cannot marshal"); return}
+	
+	err = colStream.Remove(qfind)
+	if err != nil{
+		fmt.Printf("rmPost: Cannot remove post with id `%s`\n", postId)
+	}
+}
 
 func getOrigin(originId string) (doc mongo.BSON, err os.Error){
 	
@@ -268,58 +297,74 @@ func process_post(post_id string){
 	fmt.Printf("writer: %v\n", writer.Name)
 	insertPostStream(strid(writer.Id_), post_id)
 	
-	// get origin
-	doc, err = getOrigin(post.Origin_id_)
-	if err != nil{
-		fmt.Printf("Cannot get origin id `%s`\n", post.Origin_id_)
-		return
-	}
+	var writer_id string = strid(writer.Id_)
+	fmt.Printf("writer_id: %s\n", writer_id)
 	
-	var spdoc SuperDoc
-	
-	mongo.Unmarshal(doc.Bytes(), &spdoc, atreps)
+	// get all followers
+	qfind, err = mongo.Marshal(map[string]string{"_followed_user_ids":writer_id}, atreps)
+	if err != nil{fmt.Printf("Cannot marshal. %s\n", err); return;}
 
-	fmt.Printf("spdoc._metaname_: %s\n", spdoc.Metaname_)
-	switch spdoc.Metaname_{
-	case "User":
-		var user User
-		mongo.Unmarshal(doc.Bytes(), &user, atreps)
-		//fmt.Printf("user: %v\n", user)
-		//fmt.Printf("user._followed_user_ids: %v, len: %d\n", user.Followed_user_ids_, len(user.Followed_user_ids_))
-		var user_id string = strid(user.Id_)
-		fmt.Printf("user_id: %s\n", user_id)
-		
-		// get all followers
-		qfind, err := mongo.Marshal(map[string]string{"_followed_user_ids":user_id}, atreps)
-		if err != nil{fmt.Printf("Cannot marshal. %s\n", err); return;}
-
-		cursor, err := colUser.FindAll(qfind)
-		if err != nil{
-			fmt.Printf("Cannot find post by id `%s`. %s.\n",post_id,err)
-			return
-		}
+	// broadcast to all followers
+	cursor, err := colUser.FindAll(qfind)
+	if err == nil{
 		for cursor.HasMore(){
 			doc, err = cursor.GetNext()
 			if err != nil{fmt.Printf("Cannot get next. e: %v\n", err); break}
-			
+		
 			var follower User
 			mongo.Unmarshal(doc.Bytes(), &follower, atreps)
-			fmt.Printf("follower: id: %v, name: %v\n", follower.Id_, follower.Name)
-			
+			fmt.Printf("follower: id: %v, name: %v\n", strid(follower.Id_), follower.Name)
+		
 			// insert to follower streams
 			insertPostStream(strid(follower.Id_), post_id)
 		}
-		
+	}else{
+		fmt.Printf("Cannot find post by id `%s`. %s.\n",post_id,err)
 	}
+	
+	
+	// get origin
+	doc, err = getOrigin(post.Origin_id_)
+	if err == nil{
 
-	// get users whos subscribe origin
+		var spdoc SuperDoc
+
+		mongo.Unmarshal(doc.Bytes(), &spdoc, atreps)
+
+		switch spdoc.Metaname_{
+		case "Channel":
+			var ch Channel
+			mongo.Unmarshal(doc.Bytes(), &ch, atreps)
+
+			var ch_id string = strid(ch.Id_)
+			fmt.Printf("ch_id: %s\n", ch_id)
+
+			// get all members
+			qfind, err := mongo.Marshal(map[string]string{"_channel_ids":strid(ch.Id_)}, atreps)
+			if err != nil{fmt.Printf("Cannot marshal. %s\n", err); return;}
+			
+			// broadcast to all members
+			cursor, err := colUser.FindAll(qfind)
+			if err == nil{
+				for cursor.HasMore(){
+					doc, err = cursor.GetNext()
+					if err != nil{fmt.Printf("Cannot get next. e: %v\n", err); break}
+
+					var follower User
+					mongo.Unmarshal(doc.Bytes(), &follower, atreps)
+					fmt.Printf("member: id: %v, name: %v\n", strid(follower.Id_), follower.Name)
+
+					// insert to follower streams
+					insertPostStream(strid(follower.Id_), post_id)
+				}
+			}else{
+				fmt.Printf("Cannot find post by id `%s`. %s.\n",post_id,err)
+			}
+		}
+
+	}else{
+		fmt.Printf("Cannot get origin id `%s`\n", post.Origin_id_)
+	}
 	
-	// insert post_id to user streams index
-	
-	//doc, _ := mongo.Marshal(map[string]string{
-	//	"post_id": post_id
-	//})
-	
-	//col.Insert(doc)
 }
 
