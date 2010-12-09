@@ -35,7 +35,7 @@ import (
 )
 
 var (
-	con *net.UDPConn
+	con net.PacketConn
 	db *mongo.Database
 	dbcon *mongo.Connection
 )
@@ -51,7 +51,7 @@ type Settings struct {
 
 var settings *Settings;
 
-func Init(_con *net.UDPConn, st *Settings, verbosity int){
+func Init(_con net.PacketConn, st *Settings, verbosity int){
 	con = _con
 	settings = st
 	

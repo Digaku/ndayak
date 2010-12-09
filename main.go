@@ -39,7 +39,7 @@ import (
 var (
 	VERSION string = "v0.2 alpha"
 	laddr *net.UDPAddr
-	con *net.UDPConn
+	con net.PacketConn
 	err os.Error
 )
 
@@ -65,10 +65,10 @@ func main(){
 
 	var listen_addr string = fmt.Sprintf("0.0.0.0:%d",*listen_port)
 	
-	laddr, err = net.ResolveUDPAddr(listen_addr);
-	if err != nil{fmt.Println("Error in resolve... ",err); os.Exit(1);}
+	//laddr, err = net.ResolveUDPAddr(listen_addr);
+	//if err != nil{fmt.Println("Error in resolve... ",err); os.Exit(1);}
 	
-	con, err = net.ListenUDP("udp", laddr)
+	con, err = net.ListenPacket("udp4", "0.0.0.0:50105")
 	if err != nil{fmt.Println("Error in listen..."); os.Exit(2);}
 	
 	fmt.Println("Listening at " + listen_addr + "...")
@@ -97,10 +97,10 @@ func main(){
 func stream_reader(resp chan string,id int){
 	var buf[1000] byte;
 	for{
-		n, err := con.Read(buf[0:128]);
+		n, _, err := con.ReadFrom(buf[0:128]);
 		if err != nil{fmt.Println("Error in read..."); os.Exit(3);}
 		
-		//fmt.Println(fmt.Sprintf("[sr-%d]",id),"received",n,"bytes")
+		fmt.Println(fmt.Sprintf("[sr-%d]",id),"received",n,"bytes")
 	
 		go func(ch chan string){
 			var d string = string(buf[:n]);

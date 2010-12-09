@@ -45,10 +45,10 @@ const (
 )
 
 var (
-	con *net.UDPConn
+	con net.PacketConn
 )
 
-func Init(_con *net.UDPConn){
+func Init(_con net.PacketConn){
 	con = _con
 }
 
@@ -65,6 +65,7 @@ func Worker(ch chan string){
 		cmdstr := d[0]
 		
 		if cmdstr[0] != '/'{
+			ndayak.Warn("Invalid command\n")
 			return
 		}
 		
@@ -80,7 +81,7 @@ func Worker(ch chan string){
 			ndayak.ProcessPost(post_id)
 			
 		case CMD_QUIT:
-			ndayak.Info("Quit command received. Realy quiting now...")
+			ndayak.Info("Quit command received. Realy quiting now...\n")
 			con.Close()
 			os.Exit(0)
 			
