@@ -40,6 +40,7 @@ const (
 	CMD_QUIT = "/q"
 	CMD_PROCESS = "/p" // /p [POST-ID]
 	CMD_RMPOST = "/rm" // /rm [POST-ID]
+	CMD_UPPOST = "/up" // /up [POST-ID]
 )
 
 var (
@@ -86,6 +87,10 @@ func Worker(ch chan string){
 			post_id := arg
 			ndayak.Info("Removing stream for post id: `%s`...\n", post_id)
 			ndayak.RmPostStream(post_id)
+			
+		case CMD_UPPOST:
+			post_id := arg
+			ndayak.Info("Top up post id: `%s`...\n", post_id)
 			
 		default:
 			ndayak.Info("Unknown command `%s`\n", cmdstr)

@@ -84,7 +84,7 @@ func ProcessPost(post_id string){
 
 	doc, err := ColPost.FindOne(qfind)
 	if err != nil{
-		Error("Cannot find post by id `%s`. %s.\n",post_id,err)
+		Warn("Cannot find post by id `%s`. %s.\n",post_id,err)
 		return
 	}
 	
@@ -98,7 +98,7 @@ func ProcessPost(post_id string){
 	// get writer
 	writer, err := GetUser(post.WriterId)
 	if err != nil{
-		Error("Cannot get writer with id `%s` for post id `%s`. err: %v\n", post.WriterId, strid(post.Id_), err)
+		Warn("Cannot get writer with id `%s` for post id `%s`. err: %v\n", post.WriterId, strid(post.Id_), err)
 		return
 	}
 	
@@ -127,7 +127,7 @@ func ProcessPost(post_id string){
 			InsertPostStream(strid(follower.Id_), post_id)
 		}
 	}else{
-		Error("Cannot find post by id `%s`. %s.\n",post_id,err)
+		Warn("Cannot find post by id `%s`. %s.\n",post_id,err)
 	}
 	
 	
@@ -166,12 +166,12 @@ func ProcessPost(post_id string){
 					InsertPostStream(strid(follower.Id_), post_id)
 				}
 			}else{
-				Error("Cannot find post by id `%s`. %s.\n",post_id,err)
+				Warn("Cannot find post by id `%s`. %s.\n",post_id,err)
 			}
 		}
 
 	}else{
-		Error("Cannot get origin id `%s`\n", post.Origin_id_)
+		Warn("Cannot get origin id `%s`\n", post.Origin_id_)
 	}
 	
 }

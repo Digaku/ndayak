@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"os"
 	"net"
+	"time"
 	"encoding/hex"
 	"mongo"
 )
@@ -45,7 +46,7 @@ var (
 	ColUser *mongo.Collection
 )
 
-var Atreps map[string]string
+
 type OidSearch map[string]mongo.ObjectId
 
 type HasMetaname interface {
@@ -93,8 +94,10 @@ type Origin struct {
 }
 
 type PostStream struct {
+	Metaname_ string
 	UserId string
 	PostId string
+	Timepos int64
 }
 
 type searchPost struct {
@@ -103,7 +106,7 @@ type searchPost struct {
 
 
 func RmPostStream(postId string){
-	qfind, err := mongo.Marshal(map[string]string{"postid":postId}, Atreps)
+	qfind, err := mongo.Marshal(map[string]string{"postid":postId}, atreps)
 	if err != nil{err = os.NewError("Cannot marshal"); return}
 	
 	err = ColStream.Remove(qfind)
@@ -114,7 +117,7 @@ func RmPostStream(postId string){
 
 func GetOrigin(originId string) (doc mongo.BSON, err os.Error){
 	
-	qfind, err := mongo.Marshal(OidSearch{"_id":mongo.ObjectId{originId}}, Atreps)
+	qfind, err := mongo.Marshal(OidSearch{"_id":mongo.ObjectId{originId}}, atreps)
 	if err != nil{err = os.NewError("Cannot marshal"); return}
 	
 	doc, err = ColUser.FindOne(qfind)
@@ -133,7 +136,7 @@ func GetOrigin(originId string) (doc mongo.BSON, err os.Error){
 }
 
 func GetUser(userId string) (user *User, err os.Error){
-	qfind, err := mongo.Marshal(OidSearch{"_id":mongo.ObjectId{userId}}, Atreps)
+	qfind, err := mongo.Marshal(OidSearch{"_id":mongo.ObjectId{userId}}, atreps)
 	if err != nil{
 		return nil, os.NewError(fmt.Sprintf("getUser: Cannot marshal. %s", err))
 	}
@@ -145,7 +148,7 @@ func GetUser(userId string) (user *User, err os.Error){
 	
 	user = new(User)
 	
-	mongo.Unmarshal(doc.Bytes(), user, Atreps)
+	mongo.Unmarshal(doc.Bytes(), user, atreps)
 	
 	return user, nil
 }
@@ -153,7 +156,7 @@ func GetUser(userId string) (user *User, err os.Error){
 func PostStreamExists(userId string, postId string) bool {
 	
 	if len(userId) == 24 && len(postId) == 24{
-		qfind, err := mongo.Marshal(&PostStream{UserId:userId,PostId:postId}, Atreps)
+		qfind, err := mongo.Marshal(map[string]string{"userid":userId,"postid":postId}, atreps)
 		if err != nil{Error("Cannot marshal. %s\n", err); return false}
 		doc, err := ColStream.FindOne(qfind)
 		if err == nil || doc != nil{
@@ -165,16 +168,25 @@ func PostStreamExists(userId string, postId string) bool {
 }
 
 func InsertPostStream(userId string, postId string) {
+	
+	Info2("Inserting Post stream with id `%v`, writer id: `%v`\n", postId, userId)
+	
 	if len(userId) == 0 || len(postId) == 0{
 		return
 	}
 	if PostStreamExists(userId, postId){
-		Error("Cannot insertPostStream for userId: %v, postId: %v. Already exists.\n", userId, postId)
+		Warn("InsertPostStream: Cannot insert for userId: %v, postId: %v. Already exists.\n", userId, postId)
 		return
 	}
-	doc, err := mongo.Marshal(map[string]string{"_metaname_":"NdayakStream","userid":userId,"postid":postId}, Atreps)
+
+	doc, err := mongo.Marshal(&PostStream{
+		Metaname_:"NdayakStream",
+		UserId:userId,
+		PostId:postId,
+		Timepos:time.Nanoseconds() / 1e6,
+		}, atreps)
 	if err != nil{
-		Error("Cannot insertPostStream for userId: %v, postId: %v\n", userId, postId)
+		Error("Cannot insertPostStream for userId: %v, postId: %v. %v\n", userId, postId, err)
 		return
 	}
 	ColStream.Insert(doc)
