@@ -41,6 +41,7 @@ const (
 	CMD_PROCESS = "/p" // /p [POST-ID]
 	CMD_RMPOST = "/rm" // /rm [POST-ID]
 	CMD_UPPOST = "/up" // /up [POST-ID]
+	CMD_BPTALL = "/bptall" // /bptall [POST-ID]
 )
 
 var (
@@ -92,6 +93,11 @@ func Worker(ch chan string){
 			post_id := arg
 			ndayak.Info("Top up stream for post id: `%s`...\n", post_id)
 			ndayak.TopUpPost(post_id)
+			
+		case CMD_BPTALL:
+			post_id := arg
+			ndayak.Info("Broadcast all post with id `%s`\n", post_id)
+			ndayak.BroadcastAll(post_id)
 			
 		default:
 			ndayak.Info("Unknown command `%s`\n", cmdstr)

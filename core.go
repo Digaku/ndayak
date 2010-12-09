@@ -61,7 +61,7 @@ func Init(_con *net.UDPConn, st *Settings, verbosity int){
 	
 	dbcon, err = mongo.Connect(st.DbServer,st.DbPort)
 	if err != nil{fmt.Println("DB connection error.",err); return;}
-	fmt.Printf("dbcon: %v\n", dbcon == nil)
+
 	db = dbcon.GetDB(st.DbName)
 	ColStream = db.GetCollection("ndayak_streams")
 	ColPost = db.GetCollection("user_post")
@@ -189,3 +189,49 @@ func TopUpPost(postId string) {
 	ProcessPost(postId)
 }
 
+func BroadcastAll(postId string) {
+
+	if dbcon == nil { Error("Database not connected.\n"); return;}
+
+	// get post
+	
+	qfind, err := mongo.Marshal(oidSearch{"_id":mongo.ObjectId{postId}}, atreps)
+	if err != nil{Error("Cannot marshal. %s\n", err); return;}
+
+	doc, err := ColPost.FindOne(qfind)
+	if err != nil{
+		Warn("Cannot find post by id `%s`. %s.\n",postId,err)
+		return
+	}
+	
+	var post UserPost
+	
+	mongo.Unmarshal(doc.Bytes(), &post, atreps)
+	
+	Info2("Got post id: %v, writer: %s, origin: %s\n",strid(post.Id_), post.WriterId, post.Origin_id_)
+	
+	// rm old refs
+	RmPostStream(postId)
+	
+	// broadcast to all users
+	qfind, err = mongo.Marshal(map[string]string{}, atreps)
+	if err != nil{Error("Cannot marshal. %s\n", err); return;}
+	
+	cursor, err := ColUser.FindAll(qfind)
+	if err == nil{
+		for cursor.HasMore(){
+			doc, err = cursor.GetNext()
+			if err != nil{Error("Cannot get next. e: %v\n", err); break}
+		
+			var follower User
+			mongo.Unmarshal(doc.Bytes(), &follower, atreps)
+			Info2("broadcast to all: id: %v, name: %v\n", strid(follower.Id_), follower.Name)
+		
+			// insert to follower streams
+			InsertPostStream(strid(follower.Id_), postId)
+		}
+	}else{
+		Warn("Cannot find post by id `%s`. %s.\n",postId,err)
+	}
+	
+}
