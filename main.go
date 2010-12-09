@@ -104,7 +104,7 @@ func stream_reader(resp chan string,id int){
 	
 		go func(ch chan string){
 			var d string = string(buf[:n]);
-			//fmt.Println("Got:",d)
+			fmt.Println("Got:",d)
 			ch <- d
 		}(resp)
 	}	
