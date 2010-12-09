@@ -90,7 +90,8 @@ func Worker(ch chan string){
 			
 		case CMD_UPPOST:
 			post_id := arg
-			ndayak.Info("Top up post id: `%s`...\n", post_id)
+			ndayak.Info("Top up stream for post id: `%s`...\n", post_id)
+			ndayak.TopUpPost(post_id)
 			
 		default:
 			ndayak.Info("Unknown command `%s`\n", cmdstr)

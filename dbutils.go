@@ -38,7 +38,6 @@ import (
 
 var (
 	Con *net.UDPConn
-	Db *mongo.Database
 	ColStream *mongo.Collection
 	ColPost *mongo.Collection
 	ColChan *mongo.Collection
@@ -106,6 +105,7 @@ type searchPost struct {
 
 
 func RmPostStream(postId string){
+	if dbcon == nil { Error("Database not connected.\n"); return;}
 	qfind, err := mongo.Marshal(map[string]string{"postid":postId}, atreps)
 	if err != nil{err = os.NewError("Cannot marshal"); return}
 	
@@ -116,7 +116,7 @@ func RmPostStream(postId string){
 }
 
 func GetOrigin(originId string) (doc mongo.BSON, err os.Error){
-	
+	if dbcon == nil { Error("Database not connected.\n"); return;}
 	qfind, err := mongo.Marshal(OidSearch{"_id":mongo.ObjectId{originId}}, atreps)
 	if err != nil{err = os.NewError("Cannot marshal"); return}
 	
@@ -136,6 +136,7 @@ func GetOrigin(originId string) (doc mongo.BSON, err os.Error){
 }
 
 func GetUser(userId string) (user *User, err os.Error){
+	if dbcon == nil { Error("Database not connected.\n"); return;}
 	qfind, err := mongo.Marshal(OidSearch{"_id":mongo.ObjectId{userId}}, atreps)
 	if err != nil{
 		return nil, os.NewError(fmt.Sprintf("getUser: Cannot marshal. %s", err))
@@ -154,7 +155,7 @@ func GetUser(userId string) (user *User, err os.Error){
 }
 
 func PostStreamExists(userId string, postId string) bool {
-	
+	if dbcon == nil { Error("Database not connected.\n"); return false;}
 	if len(userId) == 24 && len(postId) == 24{
 		qfind, err := mongo.Marshal(map[string]string{"userid":userId,"postid":postId}, atreps)
 		if err != nil{Error("Cannot marshal. %s\n", err); return false}
@@ -168,7 +169,7 @@ func PostStreamExists(userId string, postId string) bool {
 }
 
 func InsertPostStream(userId string, postId string) {
-	
+	if dbcon == nil { Error("Database not connected.\n"); return;}
 	Info2("Inserting Post stream with id `%v`, writer id: `%v`\n", postId, userId)
 	
 	if len(userId) == 0 || len(postId) == 0{

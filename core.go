@@ -30,12 +30,14 @@ package ndayak
 import (
 	"fmt"
 	"net"
+	"os"
 	"mongo"
 )
 
 var (
 	con *net.UDPConn
 	db *mongo.Database
+	dbcon *mongo.Connection
 )
 
 var atreps map[string]string
@@ -55,9 +57,11 @@ func Init(_con *net.UDPConn, st *Settings, verbosity int){
 	
 	SetVerbosity(verbosity)
 	
-	dbcon, err := mongo.Connect(st.DbServer,st.DbPort)
-	if err != nil{fmt.Println("DB connection error.",err); return;}
+	var err os.Error
 	
+	dbcon, err = mongo.Connect(st.DbServer,st.DbPort)
+	if err != nil{fmt.Println("DB connection error.",err); return;}
+	fmt.Printf("dbcon: %v\n", dbcon == nil)
 	db = dbcon.GetDB(st.DbName)
 	ColStream = db.GetCollection("ndayak_streams")
 	ColPost = db.GetCollection("user_post")
@@ -76,6 +80,8 @@ func Init(_con *net.UDPConn, st *Settings, verbosity int){
 }
 
 func ProcessPost(post_id string){
+
+	if dbcon == nil { Error("Database not connected.\n"); return;}
 
 	// get post
 	
@@ -174,5 +180,12 @@ func ProcessPost(post_id string){
 		Warn("Cannot get origin id `%s`\n", post.Origin_id_)
 	}
 	
+}
+
+
+func TopUpPost(postId string) {
+	if dbcon == nil { Error("Database not connected.\n"); return;}
+	RmPostStream(postId)
+	ProcessPost(postId)
 }
 

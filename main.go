@@ -37,7 +37,7 @@ import (
 )
 
 var (
-	VERSION string = "v0.1 alpha"
+	VERSION string = "v0.2 alpha"
 	laddr *net.UDPAddr
 	con *net.UDPConn
 	err os.Error
