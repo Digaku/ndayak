@@ -1,14 +1,24 @@
+include $(GOROOT)/src/Make.inc
+
+TARG=ndayak
+GOFILES=\
+	dbutils.go \
+	core.go \
+	stats.go \
+	log.go
+
+
+include $(GOROOT)/src/Make.pkg
+
 CC=$(GOBIN)/6g 
 LD=$(GOBIN)/6l 
 
 OBJS =\
-	core.6 \
+	worker.6 \
 	main.6
 
-all: ndayak
-
-ndayak: $(OBJS)
-	$(LD) -o $@ main.6
+exe: $(OBJS)
+	$(LD) -o $(TARG) main.6
 
 %.6 : %.go 
 	$(CC) $< 
@@ -16,5 +26,5 @@ ndayak: $(OBJS)
 % : %.6 
 	$(LD) -L . -o $@ $^ 
 
-clean:
+clean-ndayak:
 	rm *.6

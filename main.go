@@ -32,7 +32,8 @@ import (
 	"net"
 	"os"
 	"flag"
-	"./core"
+	"./_obj/ndayak"
+	"./worker"
 )
 
 var (
@@ -52,6 +53,7 @@ var listen_port = flag.Int("port",50105,"Listen port")
 var db_server = flag.String("dbserver","127.0.0.1","Database/collection server")
 var db_port = flag.Int("dbport",27017,"Database/collection port")
 var db_name = flag.String("dbname","test","Database name")
+var verbosity = flag.Int("v",0,"Verbosity level")
 
 func main(){
 
@@ -74,13 +76,14 @@ func main(){
 
 	resp := make(chan string)
 
-	st := core.Settings{*db_server,*db_port,*db_name}
+	st := ndayak.Settings{*db_server,*db_port,*db_name}
 	
-	core.Init(con, &st)
+	ndayak.Init(con, &st, *verbosity)
+	worker.Init(con)
 
-	go core.Worker(resp)
-	go core.Worker(resp)
-	go core.Worker(resp)
+	go worker.Worker(resp)
+	go worker.Worker(resp)
+	go worker.Worker(resp)
 	
 	go stream_reader(resp,1)
 	go stream_reader(resp,2)
@@ -97,11 +100,11 @@ func stream_reader(resp chan string,id int){
 		n, err := con.Read(buf[0:128]);
 		if err != nil{fmt.Println("Error in read..."); os.Exit(3);}
 		
-		fmt.Println(fmt.Sprintf("[sr-%d]",id),"received",n,"bytes")
+		//fmt.Println(fmt.Sprintf("[sr-%d]",id),"received",n,"bytes")
 	
 		go func(ch chan string){
 			var d string = string(buf[:n]);
-			fmt.Println("Got:",d)
+			//fmt.Println("Got:",d)
 			ch <- d
 		}(resp)
 	}	
