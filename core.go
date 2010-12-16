@@ -76,6 +76,7 @@ func Init(_con net.PacketConn, st *Settings, verbosity int){
 		"_metaname_":"metaname_",
 		"_followed_user_ids":"followed_user_ids_",
 		"_writer_id":"writerid",
+		"_popular_post":"popular_post_",
 	}
 }
 
@@ -186,7 +187,25 @@ func ProcessPost(post_id string){
 func TopUpPost(postId string) {
 	if dbcon == nil { Error("Database not connected.\n"); return;}
 	RmPostStream(postId)
-	ProcessPost(postId)
+	
+	post, err := GetPost(postId)
+	if err != nil{
+		Error("TopUpPost: post doesn't exists for id `%v`\n", postId)
+		return
+	}
+	
+	Info2("TopUpPost: got post with id `%v`\n", strid(post.Id_))
+	
+	qfind, err := mongo.Marshal(oidSearch{"_id":mongo.ObjectId{postId}}, atreps)
+	if err != nil{Error("TopUpPost: Cannot marshal. %s\n", err); return;}
+	
+	doc, err := mongo.Marshal(map[string]map[string]bool{"$set":{"_popular_post":true}}, atreps)
+	if err != nil{Error("TopUpPost: Cannot marshal. %s\n", err); return;}
+	
+	err = ColPost.Update(qfind, doc);
+	if err != nil{Error("TopUpPost: Cannot update.\n"); return;}
+	
+	BroadcastAll(postId)
 }
 
 func BroadcastAll(postId string) {

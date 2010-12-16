@@ -62,6 +62,7 @@ type UserPost struct {
 	Id_ []byte
 	Origin_id_ string
 	Metaname_ string
+	Popular_Post_ string
 	WriterId string
 	Message string
 }
@@ -152,6 +153,25 @@ func GetUser(userId string) (user *User, err os.Error){
 	mongo.Unmarshal(doc.Bytes(), user, atreps)
 	
 	return user, nil
+}
+
+func GetPost(postId string) (user *UserPost, err os.Error){
+	if dbcon == nil { Error("Database not connected.\n"); return;}
+	qfind, err := mongo.Marshal(OidSearch{"_id":mongo.ObjectId{postId}}, atreps)
+	if err != nil{
+		return nil, os.NewError(fmt.Sprintf("getUser: Cannot marshal. %s", err))
+	}
+
+	doc, err := ColPost.FindOne(qfind)
+	if err != nil{
+		return nil, os.NewError(fmt.Sprintf("getUser: Cannot find user by id `%s`. %s.",postId,err))
+	}
+	
+	var post *UserPost = new(UserPost)
+	
+	mongo.Unmarshal(doc.Bytes(), post, atreps)
+	
+	return post, nil
 }
 
 func PostStreamExists(userId string, postId string) bool {
