@@ -32,6 +32,7 @@ import (
 	"net"
 	"os"
 	"mongo"
+	"strings"
 )
 
 var (
@@ -139,6 +140,11 @@ func ProcessPost(post_id string){
 	
 	
 	// get origin
+	if len(strings.Trim(post.Origin_id_," \n\t\r")) == 0{
+		Warn("post with id `%s` has no origin id\n", strid(post.Id_))
+		return
+	}
+	
 	doc, err = GetOrigin(post.Origin_id_)
 	if err == nil{
 
@@ -175,6 +181,9 @@ func ProcessPost(post_id string){
 			}else{
 				Warn("Cannot find post by id `%s`. %s.\n",post_id,err)
 			}
+		case "User":
+			Info2("Inserting into origin=User. origin_id: %v\n", post.Origin_id_)
+			InsertPostStream(post.Origin_id_, post_id)
 		}
 
 	}else{
