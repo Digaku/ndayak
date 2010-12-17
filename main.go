@@ -95,11 +95,13 @@ func main(){
 	if *listenPort != 50105{
 		config.ListenPort = *listenPort
 	}
+
 	if *verbosity != 0{
 		config.Verbosity = *verbosity
 	}
 	
 	fmt.Printf("options:\n\tdb_server: %s:%d\n\tdb_name: %s\n", config.DbServer, config.DbPort, config.DbName)
+	fmt.Printf("\tverbosity: %d\n", config.Verbosity)
 
 	var listen_addr string = fmt.Sprintf("0.0.0.0:%d",config.ListenPort)
 	
@@ -114,7 +116,13 @@ func main(){
 		
 		// split servers
 		servers := strings.Split(config.Servers, ",", 10)
-		
+		for _, s := range servers{
+			if len(strings.Trim(s," \n\t\r")) == 0{
+				fmt.Println("[WARNING] No servers found for load balancer")
+				servers = []string{}
+				break
+			}
+		}
 		fmt.Printf("Servers (%d): %v\n", len(servers),servers)
 	}
 	fmt.Println("Listening at " + listen_addr + "...")
@@ -147,11 +155,11 @@ func stream_reader(resp chan string,id int){
 		n, _, err := con.ReadFrom(buf[0:128]);
 		if err != nil{fmt.Println("Error in read..."); os.Exit(3);}
 		
-		fmt.Println(fmt.Sprintf("[sr-%d]",id),"received",n,"bytes")
+		ndayak.Info2(fmt.Sprintf("[sr-%d]",id),"received",n,"bytes")
 	
 		go func(ch chan string){
 			var d string = string(buf[:n]);
-			fmt.Println("Got:",d)
+			ndayak.Info2("Got:",d)
 			ch <- d
 		}(resp)
 	}	
