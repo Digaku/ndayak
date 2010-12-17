@@ -43,6 +43,7 @@ var (
 	ColChan *mongo.Collection
 	ColTun *mongo.Collection
 	ColUser *mongo.Collection
+	ColUserSettings *mongo.Collection
 )
 
 
@@ -86,6 +87,14 @@ type User struct{
 	Followed_user_ids_ []string
 }
 func (s *User) Metaname() string {return s.Metaname_;}
+
+type UserSettings struct{
+	Profile_bgimage string
+	Profile_bgcolor int
+	Profile_bgfillmode int
+	No_email_notification int
+	Feed_pop_article bool
+}
 
 type Origin struct {
 	Id_ []byte
@@ -155,6 +164,25 @@ func GetUser(userId string) (user *User, err os.Error){
 	return user, nil
 }
 
+func GetUserSettings(userId string) (user_settings *UserSettings, err os.Error){
+	if dbcon == nil { Error("Database not connected.\n"); return;}
+	qfind, err := mongo.Marshal(map[string]string{"_user_id":userId}, atreps)
+	if err != nil{
+		return nil, os.NewError(fmt.Sprintf("getUserSettings: Cannot marshal. %s", err))
+	}
+
+	doc, err := ColUserSettings.FindOne(qfind)
+	if err != nil{
+		return nil, os.NewError(fmt.Sprintf("getUserSettings: Cannot find user settings by user id `%s`. %s.",userId,err))
+	}
+	
+	user_settings = new(UserSettings)
+	
+	mongo.Unmarshal(doc.Bytes(), user_settings, atreps)
+	
+	return user_settings, nil
+}
+
 func GetPost(postId string) (user *UserPost, err os.Error){
 	if dbcon == nil { Error("Database not connected.\n"); return;}
 	qfind, err := mongo.Marshal(OidSearch{"_id":mongo.ObjectId{postId}}, atreps)
@@ -184,7 +212,6 @@ func PostStreamExists(userId string, postId string) bool {
 			return true
 		}
 	}
-
 	return false
 }
 

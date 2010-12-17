@@ -69,6 +69,7 @@ func Init(_con net.PacketConn, st *Settings, verbosity int){
 	ColChan = db.GetCollection("channel")
 	ColTun = db.GetCollection("tunnel")
 	ColUser = db.GetCollection("user")
+	ColUserSettings = db.GetCollection("user_settings")
 	
 	ColStream.EnsureIndex("ndayax_1",map[string]int{"userid":1,"postid":1})
 	
@@ -78,6 +79,7 @@ func Init(_con net.PacketConn, st *Settings, verbosity int){
 		"_followed_user_ids":"followed_user_ids_",
 		"_writer_id":"writerid",
 		"_popular_post":"popular_post_",
+		"_user_id":"user_id_",
 	}
 }
 
@@ -256,12 +258,24 @@ func BroadcastAll(postId string) {
 			doc, err = cursor.GetNext()
 			if err != nil{Error("Cannot get next. e: %v\n", err); break}
 		
-			var follower User
-			mongo.Unmarshal(doc.Bytes(), &follower, atreps)
-			Info2("broadcast to all: id: %v, name: %v\n", strid(follower.Id_), follower.Name)
+			var user User
+			mongo.Unmarshal(doc.Bytes(), &user, atreps)
+			user_id := strid(user.Id_)
+			Info2("broadcast to all: id: %v, name: %v\n", user_id, user.Name)
+			
+			// get user settings, is accept feed pop article
+			st, err := GetUserSettings(user_id)
+			if err != nil{
+				Error("BroadcastAll: Cannot get user settings for user id `%v`\n", user_id)
+				continue
+			}
+			if st.Feed_pop_article == false{
+				Info2("BroadcastAll: Ignore feed article for user id `%v`\n", user_id)
+				continue
+			}
 		
 			// insert to follower streams
-			InsertPostStream(strid(follower.Id_), postId)
+			InsertPostStream(user_id, postId)
 		}
 	}else{
 		Warn("Cannot find post by id `%s`. %s.\n",postId,err)

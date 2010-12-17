@@ -169,7 +169,7 @@ func Worker(ch chan string){
 				ndayak.Info("Ndayak instance for addr `%s` has been added.\n", addr)
 			}else{
 				rmNdayak(addr)
-				ndayak.Info("Ndayak instance for addr `%s` already removed.\n", addr)
+				ndayak.Info("Ndayak instance for addr `%s` has been removed.\n", addr)
 			}
 			
 		case CMD_HI:
