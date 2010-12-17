@@ -149,6 +149,12 @@ func Worker(ch chan string){
 			ndayak.BroadcastAll(post_id)
 			
 		case CMD_SRV:
+			
+			if asLoadBalancer == false{
+				ndayak.Warn("%s command not supported for non load balancer mode\n", cmdstr)
+				continue
+			}
+			
 			d := strings.Fields(arg)
 
 			if len(d) < 2{ ndayak.Warn("Invalid `%s` command\n", cmdstr); continue; }
