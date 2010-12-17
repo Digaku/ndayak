@@ -33,6 +33,7 @@ import (
 	"strings"
 	"os"
 	"net"
+	"sync"
 	"./_obj/ndayak"
 )
 
@@ -42,14 +43,49 @@ const (
 	CMD_RMPOST = "/rm" // /rm [POST-ID]
 	CMD_UPPOST = "/up" // /up [POST-ID]
 	CMD_BPTALL = "/bptall" // /bptall [POST-ID]
+	CMD_HI = "/hi" // /hi there
 )
 
 var (
 	con net.PacketConn
+	asLoadBalancer bool
+	loadbalServers []string
+	loadbalServersCount int
+	loadbalConns [1001]net.Conn
+	redirectorMutex *sync.Mutex
 )
 
-func Init(_con net.PacketConn){
+func Init(_con net.PacketConn, asLoadbal bool, loadbalsrv string){
 	con = _con
+	asLoadBalancer = asLoadbal
+	
+	// if in load balancher mode then
+	// create exporter and importer
+	if asLoadbal == true{
+		redirectorMutex = new(sync.Mutex)
+		loadbalServers = strings.Split(loadbalsrv,",",1000)
+		loadbalServersCount = len(loadbalServers)
+		for i := 0; i < loadbalServersCount; i++ {
+			conn, err := net.Dial("udp4","",loadbalServers[i])
+			if err != nil{
+				ndayak.Error("worker.Init: Cannot dial to udp4 for load bal server: `%s`\n", loadbalServers[i])
+			}
+			ndayak.Info2("Send hi to `%v`\n", loadbalServers[i])
+			conn.Write([]byte("/hi"))
+			loadbalConns[i] = conn
+		}
+	}
+	
+}
+
+func Close(){
+	ndayak.Info2("Closing...\n")
+	if asLoadBalancer == true{
+		for i := 0; i < loadbalServersCount; i++ {
+			ndayak.Info2("Closing server `%s`...\n", loadbalServers[i])
+			loadbalConns[i].Close()
+		}
+	}
 }
 
 func Worker(ch chan string){
@@ -59,6 +95,11 @@ func Worker(ch chan string){
 		//fmt.Println("working...")
 		
 		d := strings.Fields(rv)
+
+		if asLoadBalancer == true{
+			redirectCmd(rv)
+			continue
+		}
 		
 		var arg string = ""
 		
@@ -66,7 +107,7 @@ func Worker(ch chan string){
 		
 		if cmdstr[0] != '/'{
 			ndayak.Warn("Invalid command\n")
-			return
+			continue
 		}
 		
 		if len(d) > 1{
@@ -100,10 +141,37 @@ func Worker(ch chan string){
 			ndayak.Info("Broadcast all post with id `%s`\n", post_id)
 			ndayak.BroadcastAll(post_id)
 			
+		case CMD_HI:
+			if asLoadBalancer == true{
+				redirectCmd(rv)
+			}else{
+				ndayak.Info("Got \"hi\" message from Ndayaks\n")
+			}
+			
 		default:
 			ndayak.Info("Unknown command `%s`\n", cmdstr)
 		}
 		//fmt.Println("worker finished task.")
 	}
 }
+
+var currentChExIndex = 0;
+
+func redirectCmd(cmd string){
+	redirectorMutex.Lock()
+	ndayak.Info("Redirect command `%s` to `%v`\n", cmd, loadbalServers)
+	if currentChExIndex >= loadbalServersCount{
+		currentChExIndex = 0;
+	}
+	n, err := loadbalConns[currentChExIndex].Write([]byte(cmd))
+	if err != nil{
+		ndayak.Error("redirectCmd: Cannot send data to ladbal server `%s`\n", loadbalServers[currentChExIndex])
+	}
+	ndayak.Info2("Success send to loadbal server `%s`, packet for %d bytes\n", loadbalServers[currentChExIndex], n)
+	currentChExIndex += 1;
+	redirectorMutex.Unlock()
+}
+
+
+
 

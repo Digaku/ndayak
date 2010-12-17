@@ -31,9 +31,11 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"flag"
 	"./_obj/ndayak"
 	"./worker"
+	sp "./simpleconfig"
 )
 
 var (
@@ -48,12 +50,25 @@ func banner(){
 	fmt.Printf("Ndayak %s\n",VERSION)
 }
 
+type Config struct{
+	ListenPort int
+	DbServer string
+	DbPort int
+	DbName string
+	Verbosity int
+	AsLoadBalancer bool
+	ConfigFile string
+	Servers string
+}
 
-var listen_port = flag.Int("port",50105,"Listen port")
-var db_server = flag.String("dbserver","127.0.0.1","Database/collection server")
-var db_port = flag.Int("dbport",27017,"Database/collection port")
-var db_name = flag.String("dbname","test","Database name")
+
+var listenPort = flag.Int("port",50105,"Listen port")
+var DbServer = flag.String("dbserver","127.0.0.1","Database/collection server")
+var DbPort = flag.Int("dbport",27017,"Database/collection port")
+var DbName = flag.String("dbname","test","Database name")
 var verbosity = flag.Int("v",0,"Verbosity level")
+var asLoadBalancer = flag.Bool("as-load-balancer",false,"Run Ndayak as load balancer")
+var configFile = flag.String("config","ndayak.conf","Configuration file")
 
 func main(){
 
@@ -61,25 +76,56 @@ func main(){
 	
 	banner()
 	
-	fmt.Printf("options:\n\tdb_server: %s:%d\n\tdb_name: %s\n", *db_server, *db_port, *db_name)
+	f, err := os.Open(*configFile,os.O_RDONLY,0666)
+	if err != nil{
+		fmt.Printf("Cannot open configuration file `%s`\n", *configFile)
+		os.Exit(1)
+		return
+	}
+	defer f.Close()
+	
+	var config Config
+	err = sp.Unmarshal(&config, f)
+	if err != nil{
+		fmt.Printf("Cannot parse configuraition from file `%s`\n", *configFile)
+		os.Exit(1)
+		return
+	}
+	
+	if *listenPort != 50105{
+		config.ListenPort = *listenPort
+	}
+	if *verbosity != 0{
+		config.Verbosity = *verbosity
+	}
+	
+	fmt.Printf("options:\n\tdb_server: %s:%d\n\tdb_name: %s\n", config.DbServer, config.DbPort, config.DbName)
 
-	var listen_addr string = fmt.Sprintf("0.0.0.0:%d",*listen_port)
+	var listen_addr string = fmt.Sprintf("0.0.0.0:%d",config.ListenPort)
 	
 	//laddr, err = net.ResolveUDPAddr(listen_addr);
 	//if err != nil{fmt.Println("Error in resolve... ",err); os.Exit(1);}
 	
-	con, err = net.ListenPacket("udp4", "0.0.0.0:50105")
+	con, err = net.ListenPacket("udp4", listen_addr)
 	if err != nil{fmt.Println("Error in listen..."); os.Exit(2);}
 	
+	if *asLoadBalancer == true{
+		fmt.Println("Run as load balancer")
+		
+		// split servers
+		servers := strings.Split(config.Servers, ",", 10)
+		
+		fmt.Printf("Servers (%d): %v\n", len(servers),servers)
+	}
 	fmt.Println("Listening at " + listen_addr + "...")
 	fmt.Println("Ready for connection.")
 
 	resp := make(chan string)
 
-	st := ndayak.Settings{*db_server,*db_port,*db_name}
-	
-	ndayak.Init(con, &st, *verbosity)
-	worker.Init(con)
+	st := ndayak.Settings{config.DbServer,config.DbPort,config.DbName}
+
+	ndayak.Init(con, &st, config.Verbosity)
+	worker.Init(con, *asLoadBalancer, config.Servers)
 
 	go worker.Worker(resp)
 	go worker.Worker(resp)
@@ -89,6 +135,7 @@ func main(){
 	go stream_reader(resp,2)
 	stream_reader(resp,3) // main stream-reader
 
+	worker.Close()
 	
 	fmt.Println("Done.")
 	

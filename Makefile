@@ -14,6 +14,7 @@ CC=$(GOBIN)/6g
 LD=$(GOBIN)/6l 
 
 OBJS =\
+	simpleconfig.6 \
 	worker.6 \
 	main.6
 
