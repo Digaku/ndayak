@@ -129,6 +129,11 @@ func ProcessPost(post_id string){
 		
 			var follower User
 			mongo.Unmarshal(doc.Bytes(), &follower, atreps)
+			
+			if strid(follower.Id_) == post.Origin_id_{
+				continue
+			}
+			
 			Info2("broadcast to follower: id: %v, name: %v\n", strid(follower.Id_), follower.Name)
 		
 			// insert to follower streams

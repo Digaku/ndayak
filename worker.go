@@ -248,7 +248,7 @@ func redirectCmd(cmd string){
 	}
 	n, err := loadbalConns.At(currentChExIndex).(net.Conn).Write([]byte(cmd))
 	if err != nil{
-		ndayak.Error("redirectCmd: Cannot send data to ladbal server `%s`\n", loadbalServers.At(currentChExIndex))
+		ndayak.Error("redirectCmd: Cannot send data to ladbal server `%s`. %s\n", loadbalServers.At(currentChExIndex), err)
 	}
 	ndayak.Info2("Success send to loadbal server `%s`, packet for %d bytes\n", loadbalServers.At(currentChExIndex), n)
 	currentChExIndex += 1;
