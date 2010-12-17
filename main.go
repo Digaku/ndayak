@@ -155,11 +155,11 @@ func stream_reader(resp chan string,id int){
 		n, _, err := con.ReadFrom(buf[0:128]);
 		if err != nil{fmt.Println("Error in read..."); os.Exit(3);}
 		
-		ndayak.Info2(fmt.Sprintf("[sr-%d]",id),"received",n,"bytes")
+		ndayak.Info2("[sr-%d] received %d bytes\n", id, n)
 	
 		go func(ch chan string){
 			var d string = string(buf[:n]);
-			ndayak.Info2("Got:",d)
+			ndayak.Info2("Got: %s\n",d)
 			ch <- d
 		}(resp)
 	}	
