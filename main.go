@@ -100,6 +100,11 @@ func main(){
 		config.Verbosity = *verbosity
 	}
 	
+	fmt.Printf("config.AsLoadBalancer: %v\n", config.AsLoadBalancer)
+	if config.AsLoadBalancer == true{
+		*asLoadBalancer = true
+	}
+	
 	fmt.Printf("options:\n\tdb_server: %s:%d\n\tdb_name: %s\n", config.DbServer, config.DbPort, config.DbName)
 	fmt.Printf("\tverbosity: %d\n", config.Verbosity)
 
