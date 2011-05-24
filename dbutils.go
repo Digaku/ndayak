@@ -33,7 +33,7 @@ import (
 	"net"
 	"time"
 	"encoding/hex"
-	"mongo"
+	"github.com/garyburd/go-mongo"
 )
 
 var (
@@ -146,7 +146,9 @@ func GetOrigin(originId string) (doc mongo.BSON, err os.Error){
 }
 
 func GetUser(userId string) (user *User, err os.Error){
-	if dbcon == nil { Error("Database not connected.\n"); return;}
+	if session == nil { Error("Database not connected.\n"); return;}
+
+	/*
 	qfind, err := mongo.Marshal(OidSearch{"_id":mongo.ObjectId{userId}}, atreps)
 	if err != nil{
 		return nil, os.NewError(fmt.Sprintf("getUser: Cannot marshal. %s", err))
@@ -160,6 +162,11 @@ func GetUser(userId string) (user *User, err os.Error){
 	user = new(User)
 	
 	mongo.Unmarshal(doc.Bytes(), user, atreps)
+	*/
+	
+	var user map[string]interface{}
+	
+	ColUser.Find(bson.M({"_id":userId})).One(user)
 	
 	return user, nil
 }

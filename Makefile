@@ -2,7 +2,6 @@ include $(GOROOT)/src/Make.inc
 
 TARG=ndayak
 GOFILES=\
-	dbutils.go \
 	core.go \
 	stats.go \
 	log.go

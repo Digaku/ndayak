@@ -31,17 +31,17 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"mongo"
+	"launchpad.net/gobson/bson"
+    "launchpad.net/mgo"
 	"strings"
 )
 
 var (
 	con net.PacketConn
-	db *mongo.Database
-	dbcon *mongo.Connection
+	db *mgo.DB
+	session *mongo.Session
 )
 
-var atreps map[string]string
 type oidSearch map[string]mongo.ObjectId
 
 type Settings struct {
@@ -60,19 +60,37 @@ func Init(_con net.PacketConn, st *Settings, verbosity int){
 	
 	var err os.Error
 	
-	dbcon, err = mongo.Connect(st.DbServer,st.DbPort)
-	if err != nil{fmt.Println("DB connection error.",err); return;}
+	session, err = mgo.Mongo(fmt.Sprintf("%s:%s",st.DbServer, st.DbPort))
+	if err != nil{
+		fmt.Println("DB connection error.",err); 
+		return;
+	}
+	
+	// switch to monotonic mode
+	session.SetMode(mgo.Monotonic, true)
 
-	db = dbcon.GetDB(st.DbName)
-	ColStream = db.GetCollection("ndayak_streams")
-	ColPost = db.GetCollection("user_post")
-	ColChan = db.GetCollection("channel")
-	ColTun = db.GetCollection("tunnel")
-	ColUser = db.GetCollection("user")
-	ColUserSettings = db.GetCollection("user_settings")
+	db = session.DB(st.DbName)
+	ColStream = db.C("ndayak_streams")
+	ColPost = db.C("user_post")
+	ColChan = db.C("channel")
+	ColTun = db.C("tunnel")
+	ColUser = db.C("user")
+	ColUserSettings = db.C("user_settings")
 	
-	ColStream.EnsureIndex("ndayax_1",map[string]int{"userid":1,"postid":1})
+	index = mgo.Index{
+	    Key: []string{"userid", "postid"},
+	    Unique: true,
+	    DropDups: true,
+	    Background: true,
+	    Sparse: true,
+	}
 	
+	err = ColStream.EnsureIndex(index)
+	if err != nil {
+		fmt.Println("Cannot ensure index for `userid` and `postid`")
+	}
+	
+	/*
 	atreps = map[string]string{
 		"_origin_id":"origin_id_",
 		"_metaname_":"metaname_",
@@ -81,14 +99,16 @@ func Init(_con net.PacketConn, st *Settings, verbosity int){
 		"_popular_post":"popular_post_",
 		"_user_id":"user_id_",
 	}
+	*/
 }
 
 func ProcessPost(post_id string){
 
-	if dbcon == nil { Error("Database not connected.\n"); return;}
+	if session == nil { Error("Database not connected.\n"); return;}
 
 	// get post
 	
+	/*
 	qfind, err := mongo.Marshal(oidSearch{"_id":mongo.ObjectId{post_id}}, atreps)
 	if err != nil{Error("Cannot marshal. %s\n", err); return;}
 
@@ -102,15 +122,26 @@ func ProcessPost(post_id string){
 	var post UserPost
 	
 	mongo.Unmarshal(doc.Bytes(), &post, atreps)
+	*/
 	
-	Info2("Got post id: %v, writer: %s, origin: %s\n",strid(post.Id_), post.WriterId, post.Origin_id_)
+	var dbrv map[string]interface{}
+	
+	ColPost.Find(bson.M{"_id":post_id}).One(&dbrv)
+	
+	
+	Info2("Got post id: %v, writer: %v, origin: %v\n",dbrv['_id'], db['_writer_id'], db['_origin_id'])
 	
 	// get writer
+	
+	/*
 	writer, err := GetUser(post.WriterId)
 	if err != nil{
 		Warn("Cannot get writer with id `%s` for post id `%s`. err: %v\n", post.WriterId, strid(post.Id_), err)
 		return
 	}
+	*/
+	
+	
 	
 	//fmt.Printf("writer: %v\n", writer.Name)
 	InsertPostStream(strid(writer.Id_), post_id)
